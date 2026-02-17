@@ -1,0 +1,149 @@
+# <!-- Powered by BMAD™ Core -->
+# Quality Gate Decision - Story 2.4: User Login and Logout Endpoints
+# Previous review: CONCERNS (SEC-001 - missing rate limiting)
+# Current review: PASS (SEC-001 resolved, rate limiting implemented)
+
+# Required fields
+schema: 1
+story: '2.4'
+story_title: 'User Login and Logout Endpoints'
+gate: PASS
+status_reason: 'All acceptance criteria met with comprehensive test coverage. Previous SEC-001 concern (missing rate limiting) has been successfully addressed with proper implementation.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-02-17T15:30:00Z'
+
+# Waiver status
+waiver: { active: false }
+
+# Issues identified (previous concerns resolved)
+top_issues: []
+
+# Quality scoring
+quality_score: 95 # 100 - (5 for minor future enhancements noted)
+
+# Risk summary
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: ['Monitor rate limiting effectiveness in production']
+
+# Evidence from review
+evidence:
+  tests_reviewed: 43 # Updated: 18 integration + 14 rate limiter unit + 11 auth utils unit
+  risks_identified: 0 # All previous risks resolved
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8] # All 8 ACs have test coverage
+    ac_gaps: [] # No gaps
+
+# NFR validation results
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Rate limiting implemented (5 attempts/15min per IP). Bcrypt password hashing (cost 10). SHA-256 token storage. JTI claims for token uniqueness. Generic error messages prevent credential enumeration. Previous SEC-001 concern RESOLVED.'
+  performance:
+    status: PASS
+    notes: 'Efficient indexed database queries. Appropriate bcrypt cost for security balance. No blocking operations. Rate limiter cleanup runs efficiently.'
+  reliability:
+    status: PASS
+    notes: 'Comprehensive error handling with appropriate status codes. Database transaction safety. All failure scenarios tested.'
+  maintainability:
+    status: PASS
+    notes: 'Clean code structure with proper separation of concerns. Excellent documentation. Type safety with TypeScript. Reusable utilities and clear naming conventions.'
+
+# Recommendations for future improvements
+recommendations:
+  immediate: [] # No blocking issues
+  future:
+    - action: 'Consider Redis-based rate limiting for multi-server production deployments'
+      refs: ['backend/src/middleware/rate-limiter.ts']
+      priority: 'low'
+      note: 'Current in-memory implementation is documented and acceptable for single-server MVP'
+    - action: 'Implement automatic cleanup of expired sessions'
+      refs: ['backend/src/db/schema/sessions.ts']
+      priority: 'low'
+      note: 'Not critical for MVP - can be addressed in future sprint'
+    - action: 'Consider email+IP composite key for rate limiting in production'
+      refs: ['backend/src/routes/auth.ts:122']
+      priority: 'low'
+      note: 'Current IP-only approach is acceptable for MVP'
+
+# Test coverage details
+test_coverage:
+  integration_tests: 18
+  unit_tests: 25 # 14 rate limiter + 11 auth utils
+  total_tests: 43
+  all_passing: true
+  critical_paths_covered: true
+
+# Requirements traceability
+requirements_trace:
+  - ac: 1
+    requirement: 'POST /api/v1/auth/login validates user credentials'
+    tests:
+      [
+        'should authenticate user successfully',
+        'should reject invalid email',
+        'should reject invalid password',
+      ]
+    status: 'covered'
+  - ac: 2
+    requirement: 'Returns 401 for invalid credentials'
+    tests: ['should reject invalid email', 'should reject invalid password']
+    status: 'covered'
+  - ac: 3
+    requirement: 'Returns 200 OK with user data and tokens on success'
+    tests: ['should authenticate user successfully']
+    status: 'covered'
+  - ac: 4
+    requirement: 'Creates session record with refresh token hash'
+    tests: ['should create session record on login']
+    status: 'covered'
+  - ac: 5
+    requirement: 'POST /api/v1/auth/logout accepts refresh_token'
+    tests:
+      ['should logout user successfully', 'should reject invalid refresh token']
+    status: 'covered'
+  - ac: 6
+    requirement: 'Logout deletes session from database'
+    tests: ['should delete session record on logout']
+    status: 'covered'
+  - ac: 7
+    requirement: 'Returns 200 OK after successful logout'
+    tests: ['should logout user successfully']
+    status: 'covered'
+  - ac: 8
+    requirement: 'Integration tests cover all scenarios'
+    tests:
+      ['43 tests covering all success and error paths including rate limiting']
+    status: 'covered'
+
+# Security assessment
+security_review:
+  authentication: 'PASS - Proper credential validation with bcrypt'
+  authorization: 'N/A - No authorization logic in this story'
+  data_protection: 'PASS - Passwords hashed with bcrypt, tokens stored as SHA-256 hashes'
+  rate_limiting: 'PASS - Implemented 5 attempts per 15 minutes per IP (SEC-001 RESOLVED)'
+  credential_enumeration: 'PASS - Generic error messages prevent user enumeration'
+  session_management: 'PASS - Proper session creation and revocation'
+  token_security: 'PASS - JTI claims ensure refresh token uniqueness'
+
+# Code quality metrics
+code_quality:
+  typescript_strict_mode: true
+  no_linting_errors: true
+  proper_error_handling: true
+  test_isolation: true
+  documentation: 'Excellent - inline comments and JSDoc where needed'
+  separation_of_concerns: 'Excellent - routes, middleware, utils properly separated'
+
+# Historical notes
+previous_reviews:
+  - date: '2026-02-17T09:00:00Z'
+    gate: CONCERNS
+    issues:
+      [
+        'SEC-001: Missing rate limiting',
+        'SEC-002: No automatic session cleanup',
+      ]
+    resolution: 'SEC-001 resolved with rate limiting implementation. SEC-002 noted as future enhancement (low priority)'

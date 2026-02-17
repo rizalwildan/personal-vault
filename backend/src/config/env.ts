@@ -7,6 +7,8 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   FRONTEND_URL: z.string().url(),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
   JWT_SECRET: z.string().min(32).optional(),
   JWT_ACCESS_EXPIRY: z.string().default('1h'),
   JWT_REFRESH_EXPIRY: z.string().default('30d'),

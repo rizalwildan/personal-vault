@@ -1,4 +1,5 @@
 import { sign, verify } from 'jsonwebtoken';
+import crypto from 'node:crypto';
 
 const getAccessSecret = () => {
   const secret = process.env.JWT_ACCESS_SECRET;
@@ -49,8 +50,10 @@ export async function signAccessToken(userId: string): Promise<string> {
 
 export async function signRefreshToken(userId: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    // Add jti (JWT ID) claim for uniqueness - essential for refresh token rotation
+    const jti = crypto.randomUUID();
     sign(
-      { userId, type: 'refresh' },
+      { userId, type: 'refresh', jti },
       getRefreshSecret(),
       { expiresIn: '30d' },
       (err, token) => {
