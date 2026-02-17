@@ -20,3 +20,8 @@ export const CreateTagSchema = z.object({
     .regex(/^#[0-9A-F]{6}$/i)
     .optional(),
 });
+
+export const UpdateTagSchema = CreateTagSchema.partial();
+
+export type CreateTag = z.infer<typeof CreateTagSchema>;
+export type UpdateTag = z.infer<typeof UpdateTagSchema>;
