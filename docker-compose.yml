@@ -28,6 +28,8 @@ services:
       PORT: "8000"
       NODE_ENV: development
       FRONTEND_URL: http://localhost:3000
+      JWT_ACCESS_SECRET: 3dc5523fdc821cdd6e42f9f051f79553ee1c110351d14c3edcab916e396c09a2
+      JWT_REFRESH_SECRET: 839bf8429fbf8ba3d4441045b8e07c359736f0a5cf266168fccf66442b35d6dd
     depends_on:
       postgres:
         condition: service_healthy
