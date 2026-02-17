@@ -1,15 +1,28 @@
 {
   "name": "backend",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun src/index.ts"
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir ./dist --target bun",
+    "start": "bun dist/index.js",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "elysia": "^1.0.0",
-    "shared": "workspace:*"
+    "shared": "workspace:*",
+    "elysia": "latest",
+    "@elysiajs/swagger": "latest",
+    "@elysiajs/cors": "latest",
+    "drizzle-orm": "latest",
+    "postgres": "latest",
+    "zod": "3.24.1"
   },
   "devDependencies": {
-    "@types/node": "^25.2.3"
+    "@types/bun": "latest",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "latest",
+    "typescript": "5.7.3"
   }
 }

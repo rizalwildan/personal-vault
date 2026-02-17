@@ -1,5 +1,5 @@
-import { NoteSchema, CreateNoteSchema } from '@/shared/schemas/note';
-import type { Note, CreateNote } from '@/shared/schemas/note';
+import { NoteSchema } from '@/shared/schemas/note';
+import type { Note } from '@/shared/schemas/note';
 
 const testNote: Note = {
   id: '123e4567-e89b-12d3-a456-426614174000',
@@ -12,4 +12,5 @@ const testNote: Note = {
   created_at: new Date(),
   updated_at: new Date(),
 };
-console.log('Backend import test passed');
+const validated = NoteSchema.parse(testNote);
+console.log('Backend import test passed', validated.title);
