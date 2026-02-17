@@ -20,8 +20,16 @@ export type UserWithPassword = z.infer<typeof UserWithPasswordSchema>;
 
 export const RegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8).max(100),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain uppercase letter')
+    .regex(/[a-z]/, 'Password must contain lowercase letter')
+    .regex(/\d/, 'Password must contain number'),
   name: z.string().min(1).max(100),
+  terms_accepted: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept terms and conditions' }),
+  }),
 });
 
 export const LoginSchema = z.object({
