@@ -1,12 +1,13 @@
 {
-  "name": "personal-vault-backend",
+  "name": "backend",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "start": "bun src/index.ts"
+    "dev": "bun src/index.ts"
   },
   "dependencies": {
-    "elysia": "^1.0.0"
+    "elysia": "^1.0.0",
+    "shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.2.3"
