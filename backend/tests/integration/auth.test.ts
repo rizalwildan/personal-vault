@@ -3,7 +3,7 @@ import { testClient } from '../test-utils';
 import { db } from '../../src/db/client';
 import { users, sessions } from '../../src/db/schema';
 import { comparePassword } from '../../src/utils/auth';
-import { eq } from 'drizzle-orm';
+import { eq, update } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { loginRateLimiter } from '../../src/middleware/rate-limiter';
 
@@ -443,5 +443,141 @@ describe('POST /api/v1/auth/login - Rate Limiting', () => {
       );
 
     expect(response.status).toBe(429);
+  });
+});
+
+describe('POST /api/v1/auth/refresh', () => {
+  beforeEach(async () => {
+    // Clean database to ensure test isolation
+    await db.delete(sessions);
+    await db.delete(users);
+  });
+
+  it('should refresh access token successfully', async () => {
+    // Register and login first
+    await testClient.post('/api/v1/auth/register').json({
+      email: 'refresh-test@example.com',
+      password: 'SecurePass123',
+      name: 'Refresh Test',
+      terms_accepted: true,
+    });
+
+    const loginResponse = await testClient.post('/api/v1/auth/login').json({
+      email: 'refresh-test@example.com',
+      password: 'SecurePass123',
+    });
+
+    expect(loginResponse.status).toBe(200);
+    const loginData = await loginResponse.json();
+    const { refresh_token } = loginData.data;
+
+    // Now refresh
+    const refreshResponse = await testClient
+      .post('/api/v1/auth/refresh')
+      .json({ refresh_token });
+
+    expect(refreshResponse.status).toBe(200);
+    const refreshData = await refreshResponse.json();
+    expect(refreshData.success).toBe(true);
+    expect(refreshData.data.access_token).toBeDefined();
+    expect(refreshData.data.expires_in).toBe(3600);
+  });
+
+  it('should reject invalid refresh token', async () => {
+    const response = await testClient
+      .post('/api/v1/auth/refresh')
+      .json({ refresh_token: 'invalid-token' });
+
+    expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('should reject expired refresh token', async () => {
+    // Register and login
+    await testClient.post('/api/v1/auth/register').json({
+      email: 'expired-refresh@example.com',
+      password: 'SecurePass123',
+      name: 'Expired Refresh',
+      terms_accepted: true,
+    });
+
+    const loginResponse = await testClient.post('/api/v1/auth/login').json({
+      email: 'expired-refresh@example.com',
+      password: 'SecurePass123',
+    });
+
+    const { refresh_token } = (await loginResponse.json()).data;
+
+    // Manually expire the session
+    const tokenHash = createHash('sha256').update(refresh_token).digest('hex');
+    await db
+      .update(sessions)
+      .set({ expires_at: new Date(Date.now() - 1000) })
+      .where(eq(sessions.token_hash, tokenHash));
+
+    // Now refresh should fail
+    const refreshResponse = await testClient
+      .post('/api/v1/auth/refresh')
+      .json({ refresh_token });
+
+    expect(refreshResponse.status).toBe(401);
+    const data = await refreshResponse.json();
+    expect(data.error.code).toBe('INVALID_TOKEN');
+  });
+});
+
+describe('GET /api/v1/auth/me', () => {
+  beforeEach(async () => {
+    // Clean database to ensure test isolation
+    await db.delete(sessions);
+    await db.delete(users);
+  });
+
+  it('should return current user with valid token', async () => {
+    // Register and login first
+    await testClient.post('/api/v1/auth/register').json({
+      email: 'me-test@example.com',
+      password: 'SecurePass123',
+      name: 'Me Test',
+      terms_accepted: true,
+    });
+
+    const loginResponse = await testClient.post('/api/v1/auth/login').json({
+      email: 'me-test@example.com',
+      password: 'SecurePass123',
+    });
+
+    const { access_token } = (await loginResponse.json()).data;
+
+    // Now get me
+    const meResponse = await testClient
+      .get('/api/v1/auth/me')
+      .header('Authorization', `Bearer ${access_token}`)
+      .json();
+
+    expect(meResponse.status).toBe(200);
+    const data = await meResponse.json();
+    expect(data.success).toBe(true);
+    expect(data.data.user.email).toBe('me-test@example.com');
+  });
+
+  it('should reject request without token', async () => {
+    const response = await testClient.get('/api/v1/auth/me').json();
+
+    expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should reject request with invalid token', async () => {
+    const response = await testClient
+      .get('/api/v1/auth/me')
+      .header('Authorization', 'Bearer invalid-token')
+      .json();
+
+    expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data.error.code).toBe('UNAUTHORIZED');
   });
 });

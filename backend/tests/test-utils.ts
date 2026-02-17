@@ -31,4 +31,33 @@ export const testClient = {
       };
     },
   }),
+  get: (path: string) => ({
+    header: (header: string, value: string) => ({
+      json: async () => {
+        const response = await app.handle(
+          new Request(`http://localhost${path}`, {
+            method: 'GET',
+            headers: {
+              [header]: value,
+            },
+          }),
+        );
+        return {
+          status: response.status,
+          json: () => response.json(),
+        };
+      },
+    }),
+    json: async () => {
+      const response = await app.handle(
+        new Request(`http://localhost${path}`, {
+          method: 'GET',
+        }),
+      );
+      return {
+        status: response.status,
+        json: () => response.json(),
+      };
+    },
+  }),
 };

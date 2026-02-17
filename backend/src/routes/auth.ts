@@ -1,16 +1,18 @@
 import { Elysia, t } from 'elysia';
 import { db } from '../db/client';
 import { users, sessions } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import {
   hashPassword,
   comparePassword,
   signAccessToken,
   signRefreshToken,
+  verifyRefreshToken,
 } from '../utils/auth';
 import { createHash } from 'node:crypto';
 import { RegisterSchema, LoginSchema } from '../../../shared/schemas/user';
 import { loginRateLimiter } from '../middleware/rate-limiter';
+import { authMiddleware } from '../middleware/auth';
 
 export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
   .post(
@@ -288,6 +290,119 @@ export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
         tags: ['auth'],
         summary: 'Logout a user',
         description: 'Revokes the session associated with the refresh token',
+      },
+    },
+  )
+  .post(
+    '/refresh',
+    async ({ body, set }) => {
+      const { refresh_token } = body as { refresh_token: string };
+
+      if (!refresh_token) {
+        set.status = 401;
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'Refresh token is required',
+          },
+        };
+      }
+
+      // Compute hash of provided token
+      const tokenHash = createHash('sha256')
+        .update(refresh_token)
+        .digest('hex');
+
+      // Find valid session (not expired)
+      const session = await db.query.sessions.findFirst({
+        where: and(
+          eq(sessions.token_hash, tokenHash),
+          gt(sessions.expires_at, new Date()),
+        ),
+      });
+
+      if (!session) {
+        set.status = 401;
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'Invalid or expired refresh token',
+          },
+        };
+      }
+
+      // Verify token is valid (signature and claims)
+      try {
+        await verifyRefreshToken(refresh_token);
+      } catch (error) {
+        set.status = 401;
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: 'Invalid or expired refresh token',
+          },
+        };
+      }
+
+      // Generate new access token
+      const accessToken = await signAccessToken(session.user_id);
+
+      set.status = 200;
+      return {
+        success: true,
+        data: {
+          access_token: accessToken,
+          token_type: 'Bearer',
+          expires_in: 3600,
+        },
+      };
+    },
+    {
+      body: t.Object({
+        refresh_token: t.String(),
+      }),
+      detail: {
+        tags: ['auth'],
+        summary: 'Refresh access token',
+        description: 'Exchanges a valid refresh token for a new access token',
+      },
+    },
+  )
+  .get(
+    '/me',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        // If authResult is returned, it's an error response
+        return authResult;
+      }
+
+      const user = ctx.currentUser;
+
+      return {
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatar_url: user.avatar_url,
+            terms_accepted_at: user.terms_accepted_at,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+          },
+        },
+      };
+    },
+    {
+      detail: {
+        tags: ['auth'],
+        summary: 'Get current user info',
+        description: 'Returns information about the authenticated user',
       },
     },
   );
