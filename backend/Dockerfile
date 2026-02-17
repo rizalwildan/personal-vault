@@ -1,15 +1,21 @@
-FROM oven/bun:1
+FROM node:20-alpine
 WORKDIR /app
 
-# Copy package manifest first for dependency install caching
-COPY package.json ./
+# Install pnpm and bun
+RUN npm install -g pnpm
+RUN npm install -g bun
 
-# Install dependencies before copying source code (better layer caching)
-RUN bun install --production
+# Copy workspace files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY shared ./shared
 
-# Copy source code after dependencies are installed
-COPY . ./
+# Copy backend package and install
+COPY backend/package.json ./backend/
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy source code
+COPY backend ./backend
 
 EXPOSE 8000
 
-CMD ["bun", "run", "start"]
+CMD ["pnpm", "--filter", "backend", "start"]
