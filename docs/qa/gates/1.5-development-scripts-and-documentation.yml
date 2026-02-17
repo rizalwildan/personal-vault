@@ -1,0 +1,17 @@
+decision: CONCERNS
+epic: epic-1
+story: 1.5-development-scripts-and-documentation
+reviewer: Quinn
+date: 2026-02-17
+rationale: |
+  Implementation artifacts (scripts and docs) are present and meet acceptance criteria in source,
+  but a local smoke test and commit verification are outstanding. Recommend marking as CONCERNS
+  until the smoke test has been executed successfully and results recorded.
+actions:
+  - id: verify-smoke-test
+    description: Run `./scripts/dev.sh` locally (or in CI) and confirm the ready message and `/health` checks.
+    status: passed
+    last_result: 'Smoke test passed after freeing host port 8000; services started and migrations applied.'
+  - id: verify-commit
+    description: Ensure executable bits and files are committed and pushed.
+    status: pending
