@@ -1,8 +1,9 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { Brain, Settings, ArrowLeft } from "lucide-react"
+import { Brain, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { PageHeader } from "@/components/dashboard/page-header"
 import { NotesView } from "@/components/notes/notes-grid"
 
 export const metadata = {
@@ -14,31 +15,24 @@ export default function NotesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header - consistent with dashboard */}
-      <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Back to dashboard">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Brain className="h-4 w-4" aria-hidden="true" />
-              </div>
-              <h1 className="text-base font-semibold tracking-tight text-foreground">All Notes</h1>
-            </div>
-            <Badge variant="secondary" className="hidden sm:inline-flex text-[11px]">
-              12 notes
-            </Badge>
-          </div>
+      <PageHeader
+        title="All Notes"
+        icon={Brain}
+        showBackButton
+        maxWidth="6xl"
+        badge={
+          <Badge variant="secondary" className="hidden sm:inline-flex text-[11px]">
+            12 notes
+          </Badge>
+        }
+        actions={
           <Link href="/settings">
             <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings">
               <Settings className="h-4 w-4" />
             </Button>
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main content */}
       <main className="mx-auto max-w-6xl">

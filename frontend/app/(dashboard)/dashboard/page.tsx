@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { StatsCard, StatusDot, ProgressBar } from "@/components/dashboard/stats-card"
 import { RecentNotes } from "@/components/dashboard/recent-notes"
+import { PageHeader } from "@/components/dashboard/page-header"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 
@@ -71,28 +72,33 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Brain className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Personal Vault</h1>
-            <Badge
-              variant={mockStats.mcpStatus === "connected" ? "default" : "destructive"}
-              className="ml-1 hidden sm:inline-flex"
-            >
-              <StatusDot status={mockStats.mcpStatus} />
-              <span className="ml-1.5 capitalize">{mockStats.mcpStatus}</span>
-            </Badge>
-          </div>
-          <Link href="/settings">
-            <Button variant="ghost" size="icon" aria-label="Settings">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <PageHeader
+        title="Personal Vault"
+        icon={Brain}
+        badge={
+          <Badge
+            variant={mockStats.mcpStatus === "connected" ? "default" : "destructive"}
+            className="ml-1 hidden sm:inline-flex"
+          >
+            <StatusDot status={mockStats.mcpStatus} />
+            <span className="ml-1.5 capitalize">{mockStats.mcpStatus}</span>
+          </Badge>
+        }
+        actions={
+          <>
+            <Link href="/notes">
+              <Button variant="ghost" size="icon" aria-label="View notes">
+                <FileText className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/settings">
+              <Button variant="ghost" size="icon" aria-label="Settings">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Main content */}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
