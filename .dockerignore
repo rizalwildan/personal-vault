@@ -1,0 +1,13 @@
+# Ignore local envs and node_modules to keep images small
+node_modules
+frontend/.next
+frontend/node_modules
+backend/node_modules
+.env
+.env.*
+.git
+logs
+tmp
+temp
+.DS_Store
+*.log
