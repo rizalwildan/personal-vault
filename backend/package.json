@@ -1,0 +1,14 @@
+{
+  "name": "personal-vault-backend",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "elysia": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3"
+  }
+}
