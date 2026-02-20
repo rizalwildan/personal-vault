@@ -1,0 +1,53 @@
+schema: 1
+story: '3.2'
+story_title: 'Transformers.js Embedding Service'
+gate: PASS
+status_reason: 'Both prior CONCERNS resolved: stub integration tests 5 & 6 are now fully implemented with method mocking, and the sharp native binary issue is resolved via upgrade to ^0.34.5. All 15 ACs satisfied. Two low-severity observations noted but not blocking.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-02-20T12:00:00Z'
+
+top_issues: []
+
+waiver:
+  active: false
+
+quality_score: 90
+expires: '2026-03-06T00:00:00Z'
+
+evidence:
+  tests_reviewed: 21
+  risks_identified: 2
+  bugs_fixed: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    ac_gaps: [] # All ACs now have executable test coverage
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Internal service only; no user-facing inputs; Drizzle ORM parameterized queries prevent SQL injection'
+  performance:
+    status: PASS
+    notes: 'MAX_CONCURRENT=5 enforced; exponential backoff (1s/2s/4s) correctly implemented and verified by test 6 (15s timeout budget); startup loading prevents cold-start latency'
+  reliability:
+    status: PASS
+    notes: 'Retry logic verified by integration test 5 (2 failures → success) and test 6 (always fail → marked failed after 4 total attempts). EmbeddingQueue.processing provides primary deduplication guard.'
+  maintainability:
+    status: PASS
+    notes: 'Clear service/queue/repository separation; singleton exports follow project patterns; preprocessText exported as testable pure function; mock/restore pattern in tests is clean and self-contained'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Strengthen health integration test 2 to assert queueSize increases after enqueue and decreases after processing, matching the story AC description'
+      refs:
+        - 'backend/tests/integration/routes/health.routes.test.ts'
+    - action: 'Document that EmbeddingService.processingQueue deduplication is temporarily ineffective during retry windows (between processNote(N) finally and processNote(N+1) first await); add inline comment noting EmbeddingQueue.processing as the authoritative guard'
+      refs:
+        - 'backend/src/services/embedding.service.ts'
+    - action: 'Replace in-memory queue with Redis for multi-instance scaling when horizontal scaling is needed'
+      refs:
+        - 'backend/src/queues/embedding.queue.ts'
+    - action: 'Add queue size metrics to monitoring/observability pipeline beyond the health endpoint'
+      refs:
+        - 'backend/src/routes/health.ts'

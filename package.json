@@ -11,6 +11,11 @@
     "db:migrate": "pnpm --filter backend db:migrate",
     "db:seed": "pnpm --filter backend db:seed"
   },
+  "pnpm": {
+    "overrides": {
+      "sharp": "^0.34.5"
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "5.7.3"
