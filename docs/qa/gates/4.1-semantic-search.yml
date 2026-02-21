@@ -1,0 +1,88 @@
+schema: 1
+story: "4.1"
+story_title: "Semantic Search Implementation"
+gate: PASS
+status_reason: >
+  All 12 acceptance criteria are fully implemented with meaningful tests.
+  The three medium-severity CONCERNS from the initial review (any types, weak SQL filter
+  assertions, and untriggered AC7 fallback integration test) were all resolved in v1.2.
+  No blocking issues remain.
+reviewer: "Quinn (Test Architect)"
+updated: "2026-02-21T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "DOC-001"
+    severity: low
+    finding: >
+      AC12 states "Returns 400 Bad Request for invalid parameters" but Elysia's TypeBox
+      body validation returns 422 Unprocessable Entity. Integration tests correctly assert
+      422 with inline comments. No functional impact.
+    suggested_action: >
+      Update AC12 to note that Elysia returns 422 for body schema violations.
+      Low priority — documentation only.
+    suggested_owner: sm
+
+quality_score: 95  # -5 for 1 remaining low-severity open item (DOC-001); functionally clean
+
+expires: "2026-03-07T00:00:00Z"
+
+evidence:
+  tests_reviewed: 22  # 9 unit + 13 integration
+  risks_identified: 1  # DOC-001 (low)
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: >
+      JWT auth enforced on every request via authMiddleware. All user inputs parameterized
+      via Drizzle sql template. Tags array uses documented sql.raw with manual
+      single-quote escaping (acceptable workaround). user_id always sourced from
+      verified JWT payload. No cross-user data leakage possible.
+  performance:
+    status: PASS
+    notes: >
+      processing_time_ms measured end-to-end including embedding generation.
+      Integration timing test asserts < 2000ms on warm model (AC10). HNSW and GIN
+      indexes in place. Transformers.js model initialized at app bootstrap, not per-request.
+  reliability:
+    status: PASS
+    notes: >
+      fullTextSearch fallback now genuinely integration-tested via spyOn mock.
+      Unit test verifies fallback is invoked when generateEmbedding throws.
+      Fallback uses is_archived=false filter; does NOT filter by embedding_status
+      (correct per AC9). Error handling covers all three paths: embedding failure,
+      DB error (surfaced as 500), and schema validation failure (422).
+  maintainability:
+    status: PASS
+    notes: >
+      SearchRow interface eliminates any types in production row mapping.
+      AuthContext type trimmed to minimal fields. SQL filter unit tests now inspect
+      query content via JSON.stringify. JSDoc on public and private methods.
+      Code is self-documenting; fallback logic clearly commented.
+
+history:
+  - at: "2026-02-21T00:00:00Z"
+    gate: CONCERNS
+    note: >
+      Initial review. Three medium issues: any types (TS-001), untriggered AC7
+      fallback integration test (TEST-001), weak SQL filter unit tests (TEST-002).
+      One low issue: AuthContext over-declaration (STYLE-001).
+  - at: "2026-02-21T12:00:00Z"
+    gate: PASS
+    note: >
+      Re-review after v1.2 fixes. All four previous issues resolved. DOC-001 (low,
+      400 vs 422 AC text) remains open but is documentation-only with no
+      functional impact.
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Update AC12 to note Elysia returns 422 (not 400) for body schema violations"
+      refs: ["docs/stories/4.1.semantic-search.md"]
+    - action: "Consider native parameterized array binding for tags filter when Drizzle adds support"
+      refs: ["backend/src/services/search.service.ts"]

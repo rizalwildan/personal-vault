@@ -1,6 +1,6 @@
 # Epic 2: Backend Authentication System
 
-**Status:** Not Started
+**Status:** Complete
 **Priority:** CRITICAL (Blocking)
 **Estimated Duration:** 4-6 days
 **Dependencies:** Epic 1 (Foundation & Infrastructure)
@@ -20,6 +20,7 @@ Implement a complete JWT-based authentication system for BMad-Personal-Vault, in
 The system uses **custom JWT authentication** with PostgreSQL-backed session management. No external auth providers (OAuth, Auth0) are used to maintain self-hosted privacy requirements (NFR3).
 
 **Authentication Flow:**
+
 1. User registers → Backend creates user record + hashed password
 2. User logs in → Backend validates credentials → Issues access token (1h) + refresh token (30d)
 3. Authenticated requests → Backend validates JWT access token
@@ -27,6 +28,7 @@ The system uses **custom JWT authentication** with PostgreSQL-backed session man
 5. Logout → Backend revokes refresh token (adds to session blacklist)
 
 **Security Requirements:**
+
 - Passwords hashed with bcrypt (cost factor 10)
 - JWTs signed with HS256 (secret key from env)
 - Access tokens short-lived (1 hour) to limit exposure
@@ -69,6 +71,7 @@ The system uses **custom JWT authentication** with PostgreSQL-backed session man
 **Goal:** Define and migrate database schema for authentication.
 
 **Key Tasks:**
+
 - Create Drizzle schema for `users` table
 - Create Drizzle schema for `sessions` table
 - Add Zod schemas in `/shared/schemas/user.ts` and `/shared/schemas/session.ts`
@@ -76,6 +79,7 @@ The system uses **custom JWT authentication** with PostgreSQL-backed session man
 - Add database indexes for performance
 
 **Acceptance Criteria:**
+
 - [ ] Users table created with fields: id, email (unique), password_hash, name, avatar_url, terms_accepted_at, created_at, updated_at
 - [ ] Sessions table created with fields: id, user_id (FK), token_hash (unique), expires_at, created_at
 - [ ] Indexes created: users.email, sessions.user_id, sessions.token_hash, sessions.expires_at
@@ -83,6 +87,7 @@ The system uses **custom JWT authentication** with PostgreSQL-backed session man
 - [ ] Zod schemas exported from `/shared/schemas/`
 
 **Database Schema (users):**
+
 ```typescript
 // backend/src/db/schema/users.ts
 import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
@@ -100,6 +105,7 @@ export const users = pgTable('users', {
 ```
 
 **Zod Schema (shared/schemas/user.ts):**
+
 ```typescript
 import { z } from 'zod';
 
@@ -115,14 +121,15 @@ export const UserSchema = z.object({
 
 export const RegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string()
+  password: z
+    .string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain uppercase letter')
     .regex(/[a-z]/, 'Password must contain lowercase letter')
     .regex(/[0-9]/, 'Password must contain number'),
   name: z.string().min(1).max(100),
   terms_accepted: z.literal(true, {
-    errorMap: () => ({ message: 'You must accept terms and conditions' })
+    errorMap: () => ({ message: 'You must accept terms and conditions' }),
   }),
 });
 
@@ -143,6 +150,7 @@ export type LoginInput = z.infer<typeof LoginSchema>;
 **Goal:** Create reusable utilities for JWT generation/validation and password hashing.
 
 **Key Tasks:**
+
 - Install dependencies: `bcrypt`, `jsonwebtoken` (or use Bun's built-in JWT)
 - Create password hashing utilities (hash, compare)
 - Create JWT utilities (sign, verify, decode)
@@ -150,6 +158,7 @@ export type LoginInput = z.infer<typeof LoginSchema>;
 - Write unit tests for all utilities
 
 **Acceptance Criteria:**
+
 - [ ] `hashPassword(plaintext)` returns bcrypt hash (cost factor 10)
 - [ ] `comparePassword(plaintext, hash)` validates password correctly
 - [ ] `signAccessToken(userId)` generates JWT valid for 1 hour
@@ -159,6 +168,7 @@ export type LoginInput = z.infer<typeof LoginSchema>;
 - [ ] All utilities have >90% test coverage
 
 **Utility Implementation:**
+
 ```typescript
 // backend/src/utils/auth.ts
 import { sign, verify } from 'hono/jwt'; // Or use Bun's JWT
@@ -167,19 +177,15 @@ const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET!;
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET!;
 
 export async function signAccessToken(userId: string): Promise<string> {
-  return await sign(
-    { userId, type: 'access' },
-    ACCESS_TOKEN_SECRET,
-    { expiresIn: '1h' }
-  );
+  return await sign({ userId, type: 'access' }, ACCESS_TOKEN_SECRET, {
+    expiresIn: '1h',
+  });
 }
 
 export async function signRefreshToken(userId: string): Promise<string> {
-  return await sign(
-    { userId, type: 'refresh' },
-    REFRESH_TOKEN_SECRET,
-    { expiresIn: '30d' }
-  );
+  return await sign({ userId, type: 'refresh' }, REFRESH_TOKEN_SECRET, {
+    expiresIn: '30d',
+  });
 }
 
 export async function verifyAccessToken(token: string) {
@@ -192,7 +198,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function comparePassword(
   plaintext: string,
-  hash: string
+  hash: string,
 ): Promise<boolean> {
   return await Bun.password.verify(plaintext, hash);
 }
@@ -205,6 +211,7 @@ export async function comparePassword(
 **Goal:** Implement `POST /api/v1/auth/register` endpoint.
 
 **Key Tasks:**
+
 - Create auth routes in `backend/src/routes/auth.ts`
 - Implement registration logic with validation
 - Hash password before storing
@@ -213,6 +220,7 @@ export async function comparePassword(
 - Handle duplicate email errors
 
 **Acceptance Criteria:**
+
 - [ ] `POST /api/v1/auth/register` accepts JSON body matching `RegisterSchema`
 - [ ] Validates email uniqueness (409 Conflict if exists)
 - [ ] Validates password complexity (400 Bad Request if weak)
@@ -223,6 +231,7 @@ export async function comparePassword(
 - [ ] Integration test covers success and error cases
 
 **API Contract:**
+
 ```typescript
 // POST /api/v1/auth/register
 // Request Body
@@ -263,6 +272,7 @@ export async function comparePassword(
 **Goal:** Implement `POST /api/v1/auth/login` and `POST /api/v1/auth/logout`.
 
 **Key Tasks:**
+
 - Implement login endpoint with credential validation
 - Compare password hash using bcrypt
 - Issue new access + refresh tokens on successful login
@@ -271,6 +281,7 @@ export async function comparePassword(
 - Clean up expired sessions periodically
 
 **Acceptance Criteria:**
+
 - [ ] `POST /api/v1/auth/login` validates credentials
 - [ ] Returns 401 Unauthorized for invalid email or password
 - [ ] Returns 200 OK with user + tokens on success
@@ -281,6 +292,7 @@ export async function comparePassword(
 - [ ] Integration tests cover all scenarios
 
 **Login Implementation:**
+
 ```typescript
 // POST /api/v1/auth/login
 app.post('/api/v1/auth/login', async ({ body }) => {
@@ -292,13 +304,25 @@ app.post('/api/v1/auth/login', async ({ body }) => {
   });
 
   if (!user) {
-    return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } };
+    return {
+      success: false,
+      error: {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
+      },
+    };
   }
 
   // Verify password
   const valid = await comparePassword(password, user.password_hash);
   if (!valid) {
-    return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } };
+    return {
+      success: false,
+      error: {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
+      },
+    };
   }
 
   // Generate tokens
@@ -331,6 +355,7 @@ app.post('/api/v1/auth/login', async ({ body }) => {
 **Goal:** Implement token refresh endpoint and authentication middleware for protected routes.
 
 **Key Tasks:**
+
 - Implement `POST /api/v1/auth/refresh` to issue new access tokens
 - Validate refresh token against sessions table
 - Create authentication middleware that validates JWT on protected routes
@@ -339,6 +364,7 @@ app.post('/api/v1/auth/login', async ({ body }) => {
 - Handle token expiry and invalid token errors
 
 **Acceptance Criteria:**
+
 - [ ] `POST /api/v1/auth/refresh` accepts refresh_token in body
 - [ ] Validates refresh token exists in sessions table
 - [ ] Returns new access_token (refresh token remains valid)
@@ -349,6 +375,7 @@ app.post('/api/v1/auth/login', async ({ body }) => {
 - [ ] Protected routes return 401 if no token or invalid token
 
 **Middleware Implementation:**
+
 ```typescript
 // backend/src/middleware/auth.ts
 import { Elysia } from 'elysia';
@@ -357,27 +384,26 @@ import { db } from '../db/client';
 import { users } from '../db/schema/users';
 import { eq } from 'drizzle-orm';
 
-export const authMiddleware = new Elysia()
-  .derive(async ({ headers }) => {
-    const authorization = headers['authorization'];
+export const authMiddleware = new Elysia().derive(async ({ headers }) => {
+  const authorization = headers['authorization'];
 
-    if (!authorization?.startsWith('Bearer ')) {
-      throw new Error('Unauthorized');
-    }
+  if (!authorization?.startsWith('Bearer ')) {
+    throw new Error('Unauthorized');
+  }
 
-    const token = authorization.slice(7);
-    const payload = await verifyAccessToken(token);
+  const token = authorization.slice(7);
+  const payload = await verifyAccessToken(token);
 
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, payload.userId),
-    });
-
-    if (!user) {
-      throw new Error('Unauthorized');
-    }
-
-    return { currentUser: user };
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, payload.userId),
   });
+
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+
+  return { currentUser: user };
+});
 
 // Usage in routes
 app.use(authMiddleware).get('/api/v1/auth/me', ({ currentUser }) => {
@@ -393,9 +419,11 @@ app.use(authMiddleware).get('/api/v1/auth/me', ({ currentUser }) => {
 ## Dependencies
 
 **Depends On:**
+
 - ✅ Epic 1: Foundation & Infrastructure (requires database and backend structure)
 
 **Blocks:**
+
 - Epic 3: Backend Notes CRUD (needs authentication for user-scoped notes)
 - Epic 5: Frontend Auth Logic (needs working backend auth endpoints)
 
@@ -444,11 +472,13 @@ app.use(authMiddleware).get('/api/v1/auth/me', ({ currentUser }) => {
 ## Testing Strategy
 
 ### Unit Tests
+
 - Password hashing and comparison
 - JWT signing and verification
 - Session token hashing
 
 ### Integration Tests
+
 - User registration (success, duplicate email, weak password, terms not accepted)
 - User login (success, invalid email, invalid password)
 - Token refresh (success, invalid token, expired token)
@@ -456,6 +486,7 @@ app.use(authMiddleware).get('/api/v1/auth/me', ({ currentUser }) => {
 - Protected route access (success with valid token, 401 without token)
 
 ### Manual Testing
+
 - Use Postman/Insomnia to test all endpoints
 - Verify tokens in jwt.io
 - Check database for proper data storage
@@ -484,6 +515,7 @@ app.use(authMiddleware).get('/api/v1/auth/me', ({ currentUser }) => {
 ## Handoff to Next Epic
 
 Once Epic 2 is complete, Epic 3 (Backend Notes CRUD) can begin. Developers will have:
+
 - ✅ Working authentication system
 - ✅ Protected route middleware
 - ✅ User accounts in database

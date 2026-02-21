@@ -5,6 +5,7 @@ import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
 import { notesRoutes } from './routes/notes.routes';
 import { tagsRoutes } from './routes/tags.routes';
+import { searchRoutes } from './routes/search.routes';
 import { env } from './config/env';
 
 export const app = new Elysia()
@@ -28,6 +29,7 @@ export const app = new Elysia()
           { name: 'auth', description: 'Authentication endpoints' },
           { name: 'notes', description: 'Note management endpoints' },
           { name: 'tags', description: 'Tag management endpoints' },
+          { name: 'search', description: 'Semantic search endpoints' },
         ],
       },
     }),
@@ -36,6 +38,7 @@ export const app = new Elysia()
   .use(authRoutes)
   .use(notesRoutes)
   .use(tagsRoutes)
+  .use(searchRoutes)
   .get('/', () => ({
     message: 'BMad Personal Vault API',
     version: '1.0.0',

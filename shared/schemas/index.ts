@@ -9,3 +9,6 @@ export * from './tag';
 
 // Session schemas
 export * from './session';
+
+// Search schemas
+export * from './search';
