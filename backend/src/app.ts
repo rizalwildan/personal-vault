@@ -3,6 +3,7 @@ import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
+import { notesRoutes } from './routes/notes.routes';
 import { env } from './config/env';
 
 export const app = new Elysia()
@@ -24,12 +25,14 @@ export const app = new Elysia()
         tags: [
           { name: 'health', description: 'Health check endpoints' },
           { name: 'auth', description: 'Authentication endpoints' },
+          { name: 'notes', description: 'Note management endpoints' },
         ],
       },
     }),
   )
   .use(healthRoutes)
   .use(authRoutes)
+  .use(notesRoutes)
   .get('/', () => ({
     message: 'BMad Personal Vault API',
     version: '1.0.0',

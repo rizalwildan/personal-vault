@@ -337,6 +337,8 @@ export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
       try {
         await verifyRefreshToken(refresh_token);
       } catch (error) {
+        // Log the error for debugging
+        console.warn('Refresh token verification failed:', error);
         set.status = 401;
         return {
           success: false,
@@ -381,7 +383,7 @@ export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
         return authResult;
       }
 
-      const user = ctx.currentUser;
+      const user = (ctx as any).currentUser;
 
       return {
         success: true,

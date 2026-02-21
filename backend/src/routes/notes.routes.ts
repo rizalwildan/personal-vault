@@ -1,0 +1,171 @@
+import { Elysia, t } from 'elysia';
+import { notesService } from '../services/notes.service';
+import { authMiddleware } from '../middleware/auth';
+
+// Type for auth-derived context
+type AuthContext = {
+  currentUser: {
+    id: string;
+    email: string;
+    name: string;
+    password_hash: string;
+    avatar_url: string | null;
+    terms_accepted_at: Date;
+    created_at: Date;
+    updated_at: Date;
+  };
+};
+
+export const notesRoutes = new Elysia({ prefix: '/api/v1/notes' })
+  .post(
+    '/',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        // If authResult is returned, it's an error response
+        return authResult;
+      }
+
+      const { body, set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        // Create note via service (validation happens at Elysia schema level)
+        const note = await notesService.create(currentUser.id, body);
+
+        // Set response status
+        set.status = 201;
+
+        // Return success response
+        return {
+          success: true,
+          data: {
+            note,
+          },
+        };
+      } catch (error) {
+        // Handle other errors
+        console.error('Error creating note:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to create note',
+          },
+        };
+      }
+    },
+    {
+      body: t.Object({
+        title: t.String({ minLength: 1, maxLength: 200 }),
+        content: t.String({ minLength: 1 }),
+        tags: t.Optional(t.Array(t.String())),
+      }),
+      detail: {
+        tags: ['notes'],
+        summary: 'Create a new note',
+        description: 'Creates a new note for the authenticated user',
+      },
+    },
+  )
+  .get(
+    '/',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        // If authResult is returned, it's an error response
+        return authResult;
+      }
+      const { query, set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        // Parse and validate query parameters
+        const page = query.page ? Number.parseInt(String(query.page), 10) : 1;
+        const limit = query.limit
+          ? Number.parseInt(String(query.limit), 10)
+          : 20;
+
+        // Parse tags parameter
+        let tags: string[] | undefined;
+        if (query.tags) {
+          tags = Array.isArray(query.tags) ? query.tags : [query.tags];
+        }
+
+        const is_archived =
+          query.is_archived === 'true' || query.is_archived === true;
+        const sort =
+          (query.sort as 'created_at' | 'updated_at') || 'created_at';
+        const order = (query.order as 'asc' | 'desc') || 'desc';
+
+        // Validate sort field
+        if (sort !== 'created_at' && sort !== 'updated_at') {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid sort field. Must be created_at or updated_at',
+            },
+          };
+        }
+
+        // Validate order
+        if (order !== 'asc' && order !== 'desc') {
+          set.status = 400;
+          return {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid order. Must be asc or desc',
+            },
+          };
+        }
+
+        // Get notes list via service
+        const result = await notesService.list(currentUser.id, {
+          page,
+          limit,
+          tags,
+          is_archived,
+          sort,
+          order,
+        });
+
+        // Return success response
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        console.error('Error listing notes:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to list notes',
+          },
+        };
+      }
+    },
+    {
+      query: t.Object({
+        page: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric()),
+        tags: t.Optional(t.Union([t.String(), t.Array(t.String())])),
+        is_archived: t.Optional(t.Union([t.Boolean(), t.String()])),
+        sort: t.Optional(t.String()),
+        order: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['notes'],
+        summary: 'List notes',
+        description:
+          'Retrieves a paginated list of notes for the authenticated user with filtering and sorting options',
+      },
+    },
+  );

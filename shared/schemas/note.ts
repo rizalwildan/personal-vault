@@ -27,7 +27,12 @@ export const CreateNoteSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-export const UpdateNoteSchema = CreateNoteSchema.partial();
+export const UpdateNoteSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  content: z.string().min(1).optional(),
+  tags: z.array(z.string()).optional(),
+  is_archived: z.boolean().optional(),
+});
 
 export type CreateNote = z.infer<typeof CreateNoteSchema>;
 export type UpdateNote = z.infer<typeof UpdateNoteSchema>;

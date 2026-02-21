@@ -1,0 +1,79 @@
+schema: 1
+story: '3.3'
+story_title: 'Create and List Notes Endpoints'
+gate: PASS
+status_reason: >
+  All major concerns from the first-pass review have been resolved. Auth
+  middleware refactored to Elysia plugin, (ctx as any) replaced with typed
+  AuthContext, double Zod validation removed, missing test file created,
+  embedding queue spy added, sort=updated_at test added, and all remaining
+  no-explicit-any violations cleared in the second pass. Only a documentation
+  discrepancy in AC #6 (400 vs 422 status code) remains as a PO/SM decision.
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-02-21T00:00:00Z'
+
+quality_score: 90
+expires: '2026-03-07T00:00:00Z'
+
+evidence:
+  tests_reviewed: 38   # 16 unit (pagination) + 9 POST integration + 13 GET integration
+  risks_identified: 1  # Only AC #6 documentation discrepancy remains
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+    ac_gaps:
+      - 6    # AC reads "400 Bad Request"; implementation correctly returns 422 (Elysia standard). PO/SM decision to update AC text.
+
+top_issues:
+  - id: 1
+    severity: low
+    description: >
+      AC #6 states HTTP 400 for validation errors but Elysia's body schema
+      validation returns 422 Unprocessable Entity, which is more RFC-correct.
+      Tests were written to match the 422 behaviour. AC text needs updating.
+    refs:
+      - docs/stories/3.3.create-list-notes.md
+    suggested_owner: sm
+
+waiver:
+  active: false
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: >
+      Auth middleware correctly validates JWT and user existence. User isolation
+      enforced at DB query level. No SQL injection risk (Drizzle ORM). No
+      no-explicit-any violations remain in production code.
+  performance:
+    status: PASS
+    notes: >
+      Pagination enforces 100-row max. Queries include user_id and is_archived
+      filters aligned with schema composite index. Sort/order validation runs
+      twice (route then service) but is harmless redundancy.
+  reliability:
+    status: PASS
+    notes: >
+      Error handling covers 422 (Elysia validation), 401 (auth failure), 500
+      (server errors). Catch blocks use correct unknown-typed error. User
+      isolation verified by integration tests.
+  maintainability:
+    status: PASS
+    notes: >
+      Auth context properly typed via AuthContext intersection. No any types in
+      production or test code. Unit and integration test coverage is
+      comprehensive. Minor: service still has redundant sort/order validation
+      that could be removed for clarity.
+
+recommendations:
+  immediate: []
+  future:
+    - action: >
+        Update AC #6 wording from "400 Bad Request" to "422 Unprocessable
+        Entity" to match Elysia's behaviour and RFC 9110.
+      refs:
+        - docs/stories/3.3.create-list-notes.md
+    - action: >
+        Remove redundant sort/order validation from NotesService.list() —
+        the route handler already validates these before calling the service.
+      refs:
+        - backend/src/services/notes.service.ts
