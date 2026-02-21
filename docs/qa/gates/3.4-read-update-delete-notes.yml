@@ -1,0 +1,115 @@
+schema: 1
+story: '3.4'
+story_title: 'Read, Update, Delete Notes Endpoints'
+gate: CONCERNS
+status_reason: >
+  Implementation is correct and all 23 ACs are met, but a critical test infrastructure bug
+  was found: PATCH and DELETE integration tests were dispatching HTTP POST requests due to
+  a missing patch()/delete() support in the test client. All affected tests have been fixed
+  during review. Gate is CONCERNS (not FAIL) because the fix was applied inline and no
+  production code is affected.
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-02-21T00:00:00Z'
+
+top_issues:
+  - id: 'TC-01'
+    severity: medium
+    title: 'test-utils.ts missing patch() and delete() HTTP methods'
+    description: >
+      PATCH and DELETE integration tests used testClient.post() with an X-HTTP-Method-Override
+      header. The test client always sends POST regardless of that header, and the app has no
+      method-override middleware. All 20 PATCH/DELETE integration tests would have failed to
+      reach the correct route handlers.
+    status: resolved
+    suggested_owner: dev
+    refs:
+      - 'backend/tests/test-utils.ts'
+      - 'backend/tests/integration/routes/notes.update.test.ts'
+      - 'backend/tests/integration/routes/notes.delete.test.ts'
+
+  - id: 'TC-02'
+    severity: low
+    title: 'Explicit any types in integration test variable declarations'
+    description: >
+      testUser and testNote variables typed as `any` in all three integration test files,
+      violating the @typescript-eslint/no-explicit-any rule.
+    status: resolved
+    suggested_owner: dev
+    refs:
+      - 'backend/tests/integration/routes/notes.read.test.ts'
+      - 'backend/tests/integration/routes/notes.update.test.ts'
+      - 'backend/tests/integration/routes/notes.delete.test.ts'
+
+  - id: 'DP-01'
+    severity: low
+    title: 'errors.ts deviates from architecture AppError base class pattern'
+    description: >
+      The architecture error-handling-strategy.md defines an AppError base class with embedded
+      statusCode and code properties. The implementation uses plain Error subclasses, requiring
+      route handlers to manually map error types to HTTP status codes. Functional but inconsistent
+      with the documented pattern.
+    status: open
+    suggested_owner: dev
+    refs:
+      - 'backend/src/utils/errors.ts'
+      - 'backend/src/routes/notes.routes.ts'
+
+waiver: { active: false }
+
+quality_score: 80
+
+expires: '2026-03-07T00:00:00Z'
+
+evidence:
+  tests_reviewed: 30
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: >
+      All three endpoints enforce JWT authentication via authMiddleware. Ownership is enforced
+      at the repository query level (WHERE id=? AND user_id=?), returning 404 for both
+      not-found and wrong-owner cases, preventing information disclosure. No security
+      concerns identified.
+  performance:
+    status: PASS
+    notes: >
+      Two DB round-trips per mutating operation (ownership check + action) is acceptable and
+      intentional. No N+1 queries. Soft delete avoids expensive cascade operations.
+  reliability:
+    status: PASS
+    notes: >
+      Error boundaries are in place for 404, 400, and 500 paths. Soft delete is idempotent.
+      Content change detection is deterministic (strict string equality). Embedding queue
+      is called after successful DB update to avoid orphaned queue entries.
+  maintainability:
+    status: CONCERNS
+    notes: >
+      errors.ts does not follow the AppError base class pattern defined in the architecture,
+      requiring manual status/code mapping in each route handler. AuthContext type is defined
+      inline in routes rather than in a shared types module. Unit tests mutate the repository
+      singleton directly which is fragile for test isolation.
+
+recommendations:
+  immediate: []
+  future:
+    - action: >
+        Align errors.ts with the AppError base class pattern from error-handling-strategy.md
+        so route handlers can use a single catch block with error.statusCode and error.code.
+      refs:
+        - 'backend/src/utils/errors.ts'
+        - 'backend/src/routes/notes.routes.ts'
+    - action: >
+        Move AuthContext type from inline definition in notes.routes.ts to a shared location
+        (e.g., backend/src/types/auth.types.ts) to avoid duplication across route files.
+      refs:
+        - 'backend/src/routes/notes.routes.ts'
+    - action: >
+        Add afterEach cleanup in unit tests to restore mocked methods on the notesRepository
+        singleton, preventing potential state leakage between test cases.
+      refs:
+        - 'backend/tests/unit/services/notes.update.test.ts'

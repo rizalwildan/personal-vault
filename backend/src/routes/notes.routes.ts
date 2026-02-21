@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { notesService } from '../services/notes.service';
 import { authMiddleware } from '../middleware/auth';
+import { NotFoundError } from '../utils/errors';
 
 // Type for auth-derived context
 type AuthContext = {
@@ -166,6 +167,191 @@ export const notesRoutes = new Elysia({ prefix: '/api/v1/notes' })
         summary: 'List notes',
         description:
           'Retrieves a paginated list of notes for the authenticated user with filtering and sorting options',
+      },
+    },
+  )
+  .get(
+    '/:id',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        return authResult;
+      }
+
+      const { params, set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        // Get note by ID via service (ownership enforced at DB level)
+        const note = await notesService.getById(params.id, currentUser.id);
+
+        // Return success response
+        return {
+          success: true,
+          data: note,
+        };
+      } catch (error) {
+        // Handle NotFoundError (404)
+        if (error instanceof NotFoundError) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: error.message,
+            },
+          };
+        }
+
+        // Handle other errors
+        console.error('Error getting note:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to get note',
+          },
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      detail: {
+        tags: ['notes'],
+        summary: 'Get a single note',
+        description: 'Retrieves a single note by ID for the authenticated user',
+      },
+    },
+  )
+  .patch(
+    '/:id',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        return authResult;
+      }
+
+      const { params, body, set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        // Update note via service (ownership enforced, content change detection)
+        const updatedNote = await notesService.update(
+          params.id,
+          currentUser.id,
+          body,
+        );
+
+        // Return success response
+        return {
+          success: true,
+          data: updatedNote,
+        };
+      } catch (error) {
+        // Handle NotFoundError (404)
+        if (error instanceof NotFoundError) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: error.message,
+            },
+          };
+        }
+
+        // Handle other errors
+        console.error('Error updating note:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to update note',
+          },
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: t.Partial(
+        t.Object({
+          title: t.String({ minLength: 1, maxLength: 200 }),
+          content: t.String({ minLength: 1 }),
+          tags: t.Array(t.String()),
+          is_archived: t.Boolean(),
+        }),
+      ),
+      detail: {
+        tags: ['notes'],
+        summary: 'Update a note',
+        description:
+          'Updates a note by ID for the authenticated user. Supports partial updates.',
+      },
+    },
+  )
+  .delete(
+    '/:id',
+    async (ctx) => {
+      // Apply auth middleware
+      const authResult = await authMiddleware(ctx);
+      if (authResult) {
+        return authResult;
+      }
+
+      const { params, set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        // Delete note via service (soft delete - sets is_archived=true)
+        await notesService.delete(params.id, currentUser.id);
+
+        // Return success response with null data
+        return {
+          success: true,
+          data: null,
+        };
+      } catch (error) {
+        // Handle NotFoundError (404)
+        if (error instanceof NotFoundError) {
+          set.status = 404;
+          return {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: error.message,
+            },
+          };
+        }
+
+        // Handle other errors
+        console.error('Error deleting note:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to delete note',
+          },
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      detail: {
+        tags: ['notes'],
+        summary: 'Delete a note',
+        description:
+          'Soft deletes a note by ID for the authenticated user (sets is_archived=true)',
       },
     },
   );

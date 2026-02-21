@@ -14,7 +14,7 @@ import { app } from '../src/app';
 
 export const testClient = {
   post: (path: string) => ({
-    json: async (data: any, headers?: Record<string, string>) => {
+    json: async (data: unknown, headers?: Record<string, string>) => {
       const response = await app.handle(
         new Request(`http://localhost${path}`, {
           method: 'POST',
@@ -23,6 +23,53 @@ export const testClient = {
             ...headers,
           },
           body: JSON.stringify(data),
+        }),
+      );
+      return {
+        status: response.status,
+        json: () => response.json(),
+      };
+    },
+  }),
+  patch: (path: string) => ({
+    json: async (data: unknown, headers?: Record<string, string>) => {
+      const response = await app.handle(
+        new Request(`http://localhost${path}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          body: JSON.stringify(data),
+        }),
+      );
+      return {
+        status: response.status,
+        json: () => response.json(),
+      };
+    },
+  }),
+  delete: (path: string) => ({
+    header: (header: string, value: string) => ({
+      json: async () => {
+        const response = await app.handle(
+          new Request(`http://localhost${path}`, {
+            method: 'DELETE',
+            headers: {
+              [header]: value,
+            },
+          }),
+        );
+        return {
+          status: response.status,
+          json: () => response.json(),
+        };
+      },
+    }),
+    json: async () => {
+      const response = await app.handle(
+        new Request(`http://localhost${path}`, {
+          method: 'DELETE',
         }),
       );
       return {

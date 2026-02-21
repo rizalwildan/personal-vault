@@ -1,6 +1,7 @@
 import { db } from '../db/client';
 import { notes } from '../db/schema';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
+import type { EmbeddingStatus } from '../../../shared/schemas/note';
 
 interface CreateNoteInput {
   user_id: string;
@@ -8,7 +9,7 @@ interface CreateNoteInput {
   content: string;
   tags?: string[];
   is_archived?: boolean;
-  embedding_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  embedding_status?: EmbeddingStatus;
 }
 
 interface ListFilters {
@@ -102,10 +103,7 @@ export class NotesRepository {
     };
   }
 
-  async updateEmbeddingStatus(
-    noteId: string,
-    status: 'pending' | 'processing' | 'completed' | 'failed',
-  ) {
+  async updateEmbeddingStatus(noteId: string, status: EmbeddingStatus) {
     await db
       .update(notes)
       .set({ embedding_status: status })
@@ -124,6 +122,42 @@ export class NotesRepository {
         embedding_status: status,
       })
       .where(eq(notes.id, noteId));
+  }
+
+  async update(
+    noteId: string,
+    updates: Partial<{
+      title: string;
+      content: string;
+      tags: string[];
+      is_archived: boolean;
+      embedding_status: EmbeddingStatus;
+      embedding: number[] | null;
+    }>,
+  ) {
+    const [updated] = await db
+      .update(notes)
+      .set({
+        ...updates,
+        updated_at: new Date(),
+      })
+      .where(eq(notes.id, noteId))
+      .returning();
+
+    return updated || null;
+  }
+
+  async softDelete(noteId: string) {
+    const [deleted] = await db
+      .update(notes)
+      .set({
+        is_archived: true,
+        updated_at: new Date(),
+      })
+      .where(eq(notes.id, noteId))
+      .returning();
+
+    return deleted || null;
   }
 }
 
