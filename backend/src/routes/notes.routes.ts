@@ -2,6 +2,10 @@ import { Elysia, t } from 'elysia';
 import { notesService } from '../services/notes.service';
 import { authMiddleware } from '../middleware/auth';
 import { NotFoundError } from '../utils/errors';
+import { db } from '../db/client';
+import { notes } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { embeddingQueue } from '../queues/embedding.queue';
 
 // Type for auth-derived context
 type AuthContext = {
@@ -167,6 +171,58 @@ export const notesRoutes = new Elysia({ prefix: '/api/v1/notes' })
         summary: 'List notes',
         description:
           'Retrieves a paginated list of notes for the authenticated user with filtering and sorting options',
+      },
+    },
+  )
+  .post(
+    '/reindex',
+    async (ctx) => {
+      const authResult = await authMiddleware(ctx);
+      if (authResult) return authResult;
+
+      const { set } = ctx;
+      const { currentUser } = ctx as typeof ctx & AuthContext;
+
+      try {
+        const userNotes = await db
+          .select()
+          .from(notes)
+          .where(eq(notes.user_id, currentUser.id));
+
+        for (const note of userNotes) {
+          await db
+            .update(notes)
+            .set({ embedding_status: 'pending' })
+            .where(eq(notes.id, note.id));
+
+          embeddingQueue.enqueue(note.id);
+        }
+
+        set.status = 200;
+        return {
+          success: true,
+          data: {
+            message: 'Re-indexing started',
+            queued_count: userNotes.length,
+          },
+        };
+      } catch (error) {
+        console.error('Error re-indexing notes:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to start re-indexing',
+          },
+        };
+      }
+    },
+    {
+      detail: {
+        tags: ['notes'],
+        summary: 'Re-index all notes',
+        description: 'Queues all user notes for embedding re-indexing',
       },
     },
   )

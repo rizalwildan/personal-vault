@@ -15,9 +15,9 @@ export class ValidationError extends Error {
   }
 }
 
-export class UnauthorizedError extends Error {
-  constructor(message: string = 'Unauthorized') {
+export class ConflictError extends Error {
+  constructor(message: string) {
     super(message);
-    this.name = 'UnauthorizedError';
+    this.name = 'ConflictError';
   }
 }
