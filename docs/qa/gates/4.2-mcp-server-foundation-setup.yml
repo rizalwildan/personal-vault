@@ -1,0 +1,74 @@
+schema: 1
+story: "4.2"
+story_title: "MCP Server Foundation Setup"
+gate: CONCERNS
+status_reason: "All 10 ACs functionally met and tests pass. One medium concern: fragile dummy-resource workaround for McpServer lazy initialization that could break silently on SDK upgrades. Three low concerns: duplicate test, MCPService class not exported, constructor console.log noise."
+reviewer: "Quinn (Test Architect)"
+updated: "2026-02-22T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "IMPL-001"
+    severity: medium
+    finding: "initializeResourceHandling() registers then immediately removes a dummy resource to trigger McpServer's lazy handler setup. Fragile — silent breakage risk on SDK version upgrades."
+    suggested_action: "Monitor on each @modelcontextprotocol/sdk upgrade. Replace with a stable SDK API if one becomes available. Document explicitly in a code comment that SDK upgrade requires verifying resources/list still works."
+    suggested_owner: dev
+
+  - id: "ARCH-001"
+    severity: low
+    finding: "MCPService class is not exported — only the singleton mcpService. The resources/list test works around this by constructing a raw McpServer directly, duplicating initialization logic."
+    suggested_action: "Add 'export { MCPService }' alongside the singleton to allow isolated unit testing in Stories 4.4/4.5 without duplicating SDK setup code."
+    suggested_owner: dev
+
+  - id: "TEST-001"
+    severity: low
+    finding: "Test 2 ('getStatus().serverName equals bmad-personal-vault') is fully redundant with Test 1 which already asserts all three status fields."
+    suggested_action: "Remove the redundant test to reduce noise."
+    suggested_owner: dev
+
+  - id: "STYLE-001"
+    severity: low
+    finding: "console.log in MCPService constructor fires at module import time (during tests), producing noisy output. Startup messaging belongs in startStdio()."
+    suggested_action: "Move constructor log to startStdio() or remove it. Only the transport-connected log in startStdio() is meaningful as a lifecycle event."
+    suggested_owner: dev
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 1, low: 3 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "Verify resources/list still returns [] after each @modelcontextprotocol/sdk version bump"
+
+quality_score: 90
+expires: "2026-03-08T00:00:00Z"
+
+evidence:
+  tests_reviewed: 3
+  risks_identified: 4
+  trace:
+    ac_covered: [1, 2, 3, 5, 6, 7, 8, 9, 10]
+    ac_gaps: []
+    ac_notes: "AC4 (capabilities declaration) met implicitly via McpServer API — capability negotiation works as verified by client.listResources() test"
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "stdio-only transport, no network exposure, no auth/data access in this story"
+  performance:
+    status: PASS
+    notes: "initializeResourceHandling() overhead is negligible (sync, one register/remove)"
+  reliability:
+    status: CONCERNS
+    notes: "IMPL-001: dummy-resource workaround is fragile on SDK upgrades; error handling in startStdio() is correct (catch + rethrow + process.exit)"
+  maintainability:
+    status: CONCERNS
+    notes: "Workaround requires explanation for future maintainers; MCPService class not exported limits testability; duplicate test adds confusion"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "When extending MCPService in Story 4.4 (tools), export the class and refactor tests to use it directly instead of raw McpServer"
+      refs: ["backend/src/services/mcp.service.ts"]
+    - action: "Add SDK-upgrade verification step to IMPL-001 workaround as a code comment"
+      refs: ["backend/src/services/mcp.service.ts:22-32"]
